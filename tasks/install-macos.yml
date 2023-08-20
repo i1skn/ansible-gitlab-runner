@@ -9,6 +9,15 @@
       set_fact:
         gitlab_runner_exists: "{{ gitlab_runner_exists.stat.exists }}"
 
+    - name: (MacOS) Check gitlab-runner config exists
+      stat:
+        path: "/Users/{{ gitlab_runner_macos_user }}/.gitlab-runner/config.toml"
+      register: gitlab_config_exists
+
+    - name: (MacOS) Set fact -> gitlab_config_exists
+      set_fact:
+        gitlab_config_exists: "{{ gitlab_config_exists.stat.exists }}"
+
     - name: (MacOS) Get existing version
       shell: "{{ gitlab_runner_executable }} --version | awk '/Version: ([\\d\\.]*)/{print $2}'"
       register: existing_version_shell
@@ -20,7 +29,7 @@
       set_fact:
         gitlab_runner_existing_version: "{{ existing_version_shell.stdout if existing_version_shell.rc == 0 else '0' }}"
 
-- name: (MacOS) Precreate necessary directories for arm64 architecture
+- name: (MacOS) Precreate necessary directories
   block:
     - name: (MacOS) Precreate gitlab-runner log directory
       become: yes
@@ -37,8 +46,6 @@
         path: "{{ gitlab_runner_directory }}"
         state: "directory"
 
-  when: gitlab_runner_arch == 'arm64'
-
 - name: (MacOS) INSTALL GitLab Runner for macOS
   block:
     - name: (MacOS) Download GitLab Runner
@@ -50,13 +57,13 @@
         mode: '+x'
 
     - name: (MacOS) Install GitLab Runner
-      command: "{{ gitlab_runner_executable }} install"
+      command: "{{ gitlab_runner_executable }} install -u {{gitlab_runner_macos_user}}"
 
     - name: (MacOS) Start GitLab Runner
       command: "{{ gitlab_runner_executable }} start"
       when: gitlab_runner_macos_start_runner
 
-  when: (not gitlab_runner_exists)
+  when: (not gitlab_config_exists)
 
 - name: (MacOS) UPGRADE GitLab Runner for macOS
   block:
